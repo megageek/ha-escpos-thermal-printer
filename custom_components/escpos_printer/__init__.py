@@ -13,6 +13,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .capabilities import PROFILE_AUTO, is_valid_profile
 from .const import (
+    CONF_BAUDRATE,
     CONF_BT_MAC,
     CONF_CODEPAGE,
     CONF_CONNECTION_TYPE,
@@ -26,13 +27,16 @@ from .const import (
     CONF_PROFILE,
     CONF_RELIABILITY_PROFILE,
     CONF_RFCOMM_CHANNEL,
+    CONF_SERIAL_PORT,
     CONF_STATUS_INTERVAL,
     CONF_TIMEOUT,
     CONF_VENDOR_ID,
     CONNECTION_TYPE_BLUETOOTH,
     CONNECTION_TYPE_NETWORK,
+    CONNECTION_TYPE_SERIAL,
     CONNECTION_TYPE_USB,
     DEFAULT_ALIGN,
+    DEFAULT_BAUDRATE,
     DEFAULT_CUT,
     DEFAULT_IN_EP,
     DEFAULT_LINE_WIDTH,
@@ -46,6 +50,7 @@ from .printer import (
     BluetoothPrinterConfig,
     EscposPrinterAdapterBase,
     NetworkPrinterConfig,
+    SerialPrinterConfig,
     UsbPrinterConfig,
     create_printer_adapter,
 )
@@ -176,7 +181,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EscposConfigEntry) -> bo
     # Determine connection type and create appropriate config
     connection_type = entry.data.get(CONF_CONNECTION_TYPE, CONNECTION_TYPE_NETWORK)
 
-    config: UsbPrinterConfig | NetworkPrinterConfig | BluetoothPrinterConfig
+    config: UsbPrinterConfig | NetworkPrinterConfig | BluetoothPrinterConfig | SerialPrinterConfig
     if connection_type == CONNECTION_TYPE_USB:
         config = UsbPrinterConfig(
             vendor_id=entry.data.get(CONF_VENDOR_ID, 0),
@@ -192,6 +197,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: EscposConfigEntry) -> bo
         config = BluetoothPrinterConfig(
             mac=str(entry.data.get(CONF_BT_MAC, "")),
             rfcomm_channel=int(entry.data.get(CONF_RFCOMM_CHANNEL, DEFAULT_RFCOMM_CHANNEL)),
+            timeout=float(entry.options.get(CONF_TIMEOUT, entry.data.get(CONF_TIMEOUT, 4.0))),
+            codepage=entry.options.get(CONF_CODEPAGE) or entry.data.get(CONF_CODEPAGE),
+            profile=entry.options.get(CONF_PROFILE) or entry.data.get(CONF_PROFILE),
+            line_width=int(entry.options.get(CONF_LINE_WIDTH, entry.data.get(CONF_LINE_WIDTH, 48))),
+        )
+    elif connection_type == CONNECTION_TYPE_SERIAL:
+        config = SerialPrinterConfig(
+            serial_port=str(entry.data.get(CONF_SERIAL_PORT, "")),
+            baudrate=int(entry.data.get(CONF_BAUDRATE, DEFAULT_BAUDRATE)),
             timeout=float(entry.options.get(CONF_TIMEOUT, entry.data.get(CONF_TIMEOUT, 4.0))),
             codepage=entry.options.get(CONF_CODEPAGE) or entry.data.get(CONF_CODEPAGE),
             profile=entry.options.get(CONF_PROFILE) or entry.data.get(CONF_PROFILE),

@@ -7,6 +7,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    CONF_BAUDRATE,
     CONF_CODEPAGE,
     CONF_CONNECTION_TYPE,
     CONF_IN_EP,
@@ -15,21 +16,23 @@ from .const import (
     CONF_OUT_EP,
     CONF_PRODUCT_ID,
     CONF_PROFILE,
+    CONF_SERIAL_PORT,
     CONF_STATUS_INTERVAL,
     CONF_VENDOR_ID,
     CONNECTION_TYPE_NETWORK,
+    CONNECTION_TYPE_SERIAL,
     CONNECTION_TYPE_USB,
 )
-from .printer import NetworkPrinterConfig, UsbPrinterConfig
+from .printer import NetworkPrinterConfig, SerialPrinterConfig, UsbPrinterConfig
 
 if TYPE_CHECKING:
     from . import EscposConfigEntry
 
 # Fields to redact in diagnostics output
-# - CONF_HOST: network printer hostname/IP
-# - "host": runtime host field
-# - "connection_info": contains host:port for network printers
-TO_REDACT = {CONF_HOST, "host", "connection_info"}
+# - CONF_HOST / "host": network printer hostname/IP
+# - CONF_SERIAL_PORT / "serial_port": serial port path or URL
+# - "connection_info": contains host:port or port path
+TO_REDACT = {CONF_HOST, "host", CONF_SERIAL_PORT, "serial_port", "connection_info"}
 
 
 async def async_get_config_entry_diagnostics(
@@ -71,6 +74,9 @@ async def async_get_config_entry_diagnostics(
             runtime["product_id"] = f"0x{config.product_id:04X}" if config.product_id else None
             runtime["in_ep"] = f"0x{config.in_ep:02X}" if config.in_ep else None
             runtime["out_ep"] = f"0x{config.out_ep:02X}" if config.out_ep else None
+        elif connection_type == CONNECTION_TYPE_SERIAL and isinstance(config, SerialPrinterConfig):
+            runtime["serial_port"] = config.serial_port  # redacted by TO_REDACT
+            runtime["baudrate"] = config.baudrate
         elif isinstance(config, NetworkPrinterConfig):
             runtime["host"] = config.host
             runtime["port"] = config.port
@@ -87,6 +93,15 @@ async def async_get_config_entry_diagnostics(
             CONF_PRODUCT_ID: f"0x{data.get(CONF_PRODUCT_ID, 0):04X}",
             CONF_IN_EP: f"0x{data.get(CONF_IN_EP, 0):02X}",
             CONF_OUT_EP: f"0x{data.get(CONF_OUT_EP, 0):02X}",
+            CONF_CODEPAGE: data.get(CONF_CODEPAGE),
+            CONF_PROFILE: data.get(CONF_PROFILE),
+            CONF_LINE_WIDTH: data.get(CONF_LINE_WIDTH),
+        }
+    elif connection_type == CONNECTION_TYPE_SERIAL:
+        entry_data = {
+            CONF_CONNECTION_TYPE: CONNECTION_TYPE_SERIAL,
+            CONF_SERIAL_PORT: data.get(CONF_SERIAL_PORT),  # redacted by TO_REDACT
+            CONF_BAUDRATE: data.get(CONF_BAUDRATE),
             CONF_CODEPAGE: data.get(CONF_CODEPAGE),
             CONF_PROFILE: data.get(CONF_PROFILE),
             CONF_LINE_WIDTH: data.get(CONF_LINE_WIDTH),
